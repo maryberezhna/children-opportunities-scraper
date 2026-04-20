@@ -2,7 +2,15 @@
 import asyncio
 import logging
 
-from scrapers import house_of_europe, man_contests
+from scrapers import (
+    house_of_europe,
+    man_contests,
+    unicef,
+    save_the_children,
+    british_council,
+    prometheus,
+    erasmus,
+)
 from normalizer import Normalizer
 from db import get_client, upsert_opportunity, archive_expired
 
@@ -13,20 +21,31 @@ logging.basicConfig(
 logger = logging.getLogger("main")
 
 
+SCRAPERS = [
+    house_of_europe,
+    man_contests,
+    unicef,
+    save_the_children,
+    british_council,
+    prometheus,
+    erasmus,
+]
+
+
 async def main():
     logger.info("=" * 50)
     logger.info("STARTING OPPORTUNITIES AGGREGATOR")
     logger.info("=" * 50)
 
     all_raw = []
-    for scraper in [house_of_europe, man_contests]:
+    for scraper in SCRAPERS:
         try:
             logger.info(f"Fetching from {scraper.SOURCE_NAME}")
             items = await scraper.fetch_all()
             all_raw.extend(items)
             logger.info(f"  Got {len(items)} items")
         except Exception as e:
-            logger.error(f"Scraper failed: {e}", exc_info=True)
+            logger.error(f"Scraper {scraper.SOURCE_NAME} failed: {e}", exc_info=True)
 
     logger.info(f"Total raw items: {len(all_raw)}")
 
