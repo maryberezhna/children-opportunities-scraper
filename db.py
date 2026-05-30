@@ -28,9 +28,13 @@ def upsert_opportunity(client: Client, data: dict) -> Optional[dict]:
 def archive_expired(client: Client) -> int:
     from datetime import date
     today = date.today().isoformat()
-    result = client.table("opportunities") \
-        .update({"cost_type": "closed"}) \
-        .lt("deadline", today) \
-        .neq("cost_type", "closed") \
-        .execute()
-    return len(result.data) if result.data else 0
+    try:
+        result = client.table("opportunities") \
+            .update({"status": "archived"}) \
+            .lt("deadline", today) \
+            .neq("status", "archived") \
+            .execute()
+        return len(result.data) if result.data else 0
+    except Exception as e:
+        logger.error(f"archive_expired failed: {e}")
+        return 0
