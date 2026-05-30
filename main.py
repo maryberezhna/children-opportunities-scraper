@@ -13,7 +13,8 @@ import sys
 import time
 from datetime import datetime
 
-from db import archive_expired, get_client, upsert_opportunity
+import notifier
+from db import archive_expired, get_client, get_health_stats, get_new_today, upsert_opportunity
 from normalizer import Normalizer
 from scrapers import (
     british_council,
@@ -151,6 +152,17 @@ async def amain():
     total = (end - start).total_seconds()
     print(f"\n🏁 Фініш: {end:%Y-%m-%d %H:%M:%S}")
     print(f"⏱️  Всього: {total:.1f}с ({total / 60:.1f} хв)")
+
+    # health check + daily email (only on full runs, not --only / --skip)
+    if not args.only and not args.skip:
+        print("\n📊 Перевірка бази...")
+        new_today = get_new_today(sb_client)
+        health = get_health_stats(sb_client)
+        print(f"   Нових сьогодні: {len(new_today)}")
+        print(f"   Активних у базі: {health.get('total_active', 0)}")
+        print(f"   Архівованих: {health.get('total_archived', 0)}")
+        print(f"   Без дедлайну: {health.get('no_deadline', 0)}")
+        notifier.send_daily_report(new_today, health, results, archived)
 
     if any(r["status"] == "error" for r in results):
         sys.exit(1)

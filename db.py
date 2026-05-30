@@ -25,6 +25,47 @@ def upsert_opportunity(client: Client, data: dict) -> Optional[dict]:
         return None
 
 
+def get_new_today(client: Client) -> list[dict]:
+    """Return opportunities inserted today (UTC midnight → now)."""
+    from datetime import datetime, timezone
+    today = datetime.now(timezone.utc).date().isoformat()
+    try:
+        result = (
+            client.table("opportunities")
+            .select("title, source, source_url, opportunity_type, age_from, age_to, deadline, cost_type")
+            .gte("created_at", today)
+            .eq("status", "active")
+            .order("source")
+            .execute()
+        )
+        return result.data or []
+    except Exception as e:
+        logger.error(f"get_new_today failed: {e}")
+        return []
+
+
+def get_health_stats(client: Client) -> dict:
+    """Return aggregate health statistics for the opportunities table."""
+    try:
+        active = client.table("opportunities").select("id", count="exact").eq("status", "active").execute()
+        archived = client.table("opportunities").select("id", count="exact").eq("status", "archived").execute()
+        no_dl = (
+            client.table("opportunities")
+            .select("id", count="exact")
+            .eq("status", "active")
+            .is_("deadline", "null")
+            .execute()
+        )
+        return {
+            "total_active": active.count or 0,
+            "total_archived": archived.count or 0,
+            "no_deadline": no_dl.count or 0,
+        }
+    except Exception as e:
+        logger.error(f"get_health_stats failed: {e}")
+        return {"total_active": 0, "total_archived": 0, "no_deadline": 0}
+
+
 def archive_expired(client: Client) -> int:
     from datetime import date
     today = date.today().isoformat()
