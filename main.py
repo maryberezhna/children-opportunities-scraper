@@ -162,7 +162,8 @@ async def amain():
         print(f"   Активних у базі: {health.get('total_active', 0)}")
         print(f"   Архівованих: {health.get('total_archived', 0)}")
         print(f"   Без дедлайну: {health.get('no_deadline', 0)}")
-        notifier.send_daily_report(new_today, health, results, archived)
+        sent = notifier.send_daily_report(new_today, health, results, archived)
+        print(f"📧 Email: {'надіслано ✅' if sent else 'не надіслано (перевірте GMAIL_APP_PASSWORD)'}")
 
     if any(r["status"] == "error" for r in results):
         sys.exit(1)
