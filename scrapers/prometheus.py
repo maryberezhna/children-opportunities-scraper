@@ -1,4 +1,8 @@
-"""Скрапер Prometheus — безкоштовні онлайн-курси для школярів."""
+"""Скрапер Prometheus — безкоштовні онлайн-курси для школярів.
+
+Джерело URL: democourse-sitemap.xml (69 курсових лендингів, статичний HTML).
+Попередній підхід (/courses/) повертав 404 після редизайну сайту.
+"""
 import asyncio
 import logging
 import httpx
@@ -8,41 +12,57 @@ logger = logging.getLogger(__name__)
 
 SOURCE_NAME = "Prometheus"
 BASE_URL = "https://prometheus.org.ua"
-LIST_URL = "https://prometheus.org.ua/courses/"
+SITEMAP_URL = "https://prometheus.org.ua/democourse-sitemap.xml"
 
-# Фільтр — тільки курси для школярів
 SCHOOL_KEYWORDS = [
     "зно", "нмт", "школ", "клас", "учн", "підліт", "підготов",
     "математика", "фізика", "хімія", "біологія", "історія",
-    "англійська", "українська", "література",
+    "англійська", "українська", "література", "інформатик",
+    "програмування", "python", "web", "веб", "stem",
+    "олімпіад", "конкурс", "університет", "вступ",
 ]
+
+_BROWSER_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/124.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "uk-UA,uk;q=0.9,en;q=0.8",
+    "Accept-Encoding": "gzip, deflate",
+}
+
+
+async def _get_course_urls(client: httpx.AsyncClient) -> list[str]:
+    try:
+        r = await client.get(SITEMAP_URL)
+        r.raise_for_status()
+        soup = BeautifulSoup(r.text, "lxml-xml")
+        return [
+            loc.get_text().strip()
+            for loc in soup.select("loc")
+            if "/democourse/" in loc.get_text()
+               and not any(ext in loc.get_text() for ext in (".png", ".jpg", ".webp", ".pdf"))
+        ]
+    except Exception as e:
+        logger.error(f"Failed to fetch Prometheus sitemap: {e}")
+        return []
 
 
 async def fetch_all() -> list[dict]:
     async with httpx.AsyncClient(
-        headers={"User-Agent": "Mozilla/5.0 ChildrenOppBot/1.0"},
+        headers=_BROWSER_HEADERS,
         timeout=30.0,
         follow_redirects=True,
     ) as client:
-        try:
-            resp = await client.get(LIST_URL)
-            resp.raise_for_status()
-        except Exception as e:
-            logger.error(f"Failed to fetch Prometheus list: {e}")
+        urls = await _get_course_urls(client)
+        logger.info(f"Found {len(urls)} Prometheus course pages in sitemap")
+
+        if not urls:
             return []
 
-        soup = BeautifulSoup(resp.text, "lxml")
-
-        links = set()
-        for a in soup.select("a[href*='/course/'], a[href*='/prometheus/']"):
-            href = a.get("href", "")
-            if href:
-                full = href if href.startswith("http") else BASE_URL + href
-                links.add(full.split("?")[0])
-
-        logger.info(f"Found {len(links)} Prometheus courses")
-
-        semaphore = asyncio.Semaphore(3)
+        semaphore = asyncio.Semaphore(4)
 
         async def fetch_detail(url: str):
             async with semaphore:
@@ -50,25 +70,27 @@ async def fetch_all() -> list[dict]:
                     r = await client.get(url)
                     r.raise_for_status()
                     s = BeautifulSoup(r.text, "lxml")
+
                     title_tag = s.select_one("h1")
                     title = title_tag.get_text(strip=True) if title_tag else ""
 
-                    # Пропускаємо якщо курс не для школярів
-                    if not any(kw in title.lower() for kw in SCHOOL_KEYWORDS):
-                        return None
-
                     content = s.select_one("main") or s.select_one("article") or s.select_one("body")
                     text = content.get_text(separator="\n", strip=True)[:6000] if content else ""
+
+                    title_and_text = (title + " " + text).lower()
+                    if not any(kw in title_and_text for kw in SCHOOL_KEYWORDS):
+                        return None
+
                     return {
                         "source": SOURCE_NAME,
                         "source_url": url,
                         "raw_title": title,
-                        "raw_text": f"Безкоштовний онлайн-курс Prometheus для школярів.\n\n{text}",
+                        "raw_text": f"Безкоштовний онлайн-курс Prometheus.\n\n{text}",
                     }
                 except Exception as e:
                     logger.warning(f"Failed {url}: {e}")
                     return None
 
-        tasks = [fetch_detail(url) for url in list(links)[:40]]
+        tasks = [fetch_detail(url) for url in urls]
         results = await asyncio.gather(*tasks)
         return [r for r in results if r]

@@ -14,9 +14,13 @@ def get_client() -> Client:
 
 
 def upsert_opportunity(client: Client, data: dict) -> Optional[dict]:
+    from datetime import datetime, timezone
+    # Always stamp updated_at so get_processed_today() can find today's activity.
+    # created_at is NOT included here — Supabase keeps the original value on conflict.
+    record = {**data, "updated_at": datetime.now(timezone.utc).isoformat()}
     try:
         result = client.table("opportunities").upsert(
-            data,
+            record,
             on_conflict="content_hash"
         ).execute()
         return result.data[0] if result.data else None
@@ -26,14 +30,18 @@ def upsert_opportunity(client: Client, data: dict) -> Optional[dict]:
 
 
 def get_new_today(client: Client) -> list[dict]:
-    """Return opportunities inserted today (UTC midnight → now)."""
+    """Return all opportunities processed (inserted or updated) today (UTC).
+
+    Uses updated_at rather than created_at so that recurring upserts of
+    existing records (e.g. daily MAN contests refresh) are included.
+    """
     from datetime import datetime, timezone
     today = datetime.now(timezone.utc).date().isoformat()
     try:
         result = (
             client.table("opportunities")
             .select("title, source, source_url, opportunity_type, age_from, age_to, deadline, cost_type")
-            .gte("created_at", today)
+            .gte("updated_at", today)
             .eq("status", "active")
             .order("source")
             .execute()

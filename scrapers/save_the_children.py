@@ -17,10 +17,27 @@ PROGRAM_PATHS = [
     "/what-we-do/digital-learning-centres",
 ]
 
+_BROWSER_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/124.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Language": "uk-UA,uk;q=0.9,en-US;q=0.8,en;q=0.7",
+    "Accept-Encoding": "gzip, deflate",
+    "Connection": "keep-alive",
+    "Upgrade-Insecure-Requests": "1",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "none",
+    "Cache-Control": "max-age=0",
+}
+
 
 async def fetch_all() -> list[dict]:
     async with httpx.AsyncClient(
-        headers={"User-Agent": "Mozilla/5.0 ChildrenOppBot/1.0"},
+        headers=_BROWSER_HEADERS,
         timeout=30.0,
         follow_redirects=True,
     ) as client:

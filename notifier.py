@@ -43,7 +43,7 @@ def send_daily_report(
 
     today = datetime.now().strftime("%Y-%m-%d")
     n_new = len(new_opportunities)
-    subject = f"🎓 Dityam — {today}: {n_new} нових можливостей"
+    subject = f"🎓 Dityam — {today}: {n_new} записів збережено"
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
@@ -94,7 +94,7 @@ def _build_html(today, new_opps, health, results, archived):
             )
         new_section = f"""
         <h2 style="font-size:16px;color:#111;margin:24px 0 12px;">
-          🆕 Нові можливості сьогодні ({n_new})
+          📋 Збережено сьогодні ({n_new})
         </h2>
         <table style="width:100%;border-collapse:collapse;background:white;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08);">
           <thead>
@@ -110,7 +110,7 @@ def _build_html(today, new_opps, health, results, archived):
     else:
         new_section = """
         <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:16px;color:#92400e;font-size:14px;">
-          ℹ️ Сьогодні нових можливостей не додано.
+          ℹ️ Сьогодні скрапери не повернули жодного запису.
         </div>"""
 
     # ── scraper results table ─────────────────────────────────────────────────
@@ -169,7 +169,7 @@ def _build_html(today, new_opps, health, results, archived):
   <div style="background:white;padding:20px 28px;display:flex;gap:12px;border-bottom:1px solid #e5e7eb;">
     <div style="flex:1;text-align:center;padding:14px;background:#eff6ff;border-radius:8px;">
       <div style="font-size:26px;font-weight:700;color:#1e40af;">{n_new}</div>
-      <div style="color:#6b7280;font-size:12px;margin-top:2px;">нових сьогодні</div>
+      <div style="color:#6b7280;font-size:12px;margin-top:2px;">збережено сьогодні</div>
     </div>
     <div style="flex:1;text-align:center;padding:14px;background:#f0fdf4;border-radius:8px;">
       <div style="font-size:26px;font-weight:700;color:#15803d;">{total_active}</div>
@@ -230,7 +230,7 @@ def _build_text(today, new_opps, health, results, archived):
     lines = [
         f"🎓 Dityam Scrapers — {today}",
         "=" * 50,
-        f"Нових сьогодні: {len(new_opps)}",
+        f"Збережено сьогодні: {len(new_opps)}",
         f"Активних у базі: {health.get('total_active', 0)}",
         f"Архівовано сьогодні: {archived}",
         "",
